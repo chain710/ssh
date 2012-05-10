@@ -1165,6 +1165,7 @@ class Transport (threading.Thread):
             event was passed in)
         @raise SSHException: if there was a network error
         """
+        self._log(DEBUG, "in auth_password")
         if (not self.active) or (not self.initial_kex_done):
             # we should never try to send the password unless we're on a secure link
             raise SSHException('No existing session')
@@ -1194,7 +1195,10 @@ class Transport (threading.Thread):
                         # type we're doing here.  *shrug* :)
                         return []
                     return [ password ]
-                return self.auth_interactive(username, handler)
+                
+                tmp_event = threading.Event()
+                self.auth_handler.auth_interactive(username, handler, tmp_event, '')
+                return self.auth_handler.wait_for_response(tmp_event)
             except SSHException, ignored:
                 # attempt failed; just raise the original exception
                 raise x
@@ -1299,6 +1303,7 @@ class Transport (threading.Thread):
             # we should never try to authenticate unless we're on a secure link
             raise SSHException('No existing session')
         my_event = threading.Event()
+        
         self.auth_handler = AuthHandler(self)
         self.auth_handler.auth_interactive(username, handler, my_event, submethods)
         return self.auth_handler.wait_for_response(my_event)
